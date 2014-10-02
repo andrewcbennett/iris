@@ -33,6 +33,9 @@ __all__ = ['run']
 # Meridian scaling for British National grid.
 MERIDIAN_SCALING_BNG = 0.9996012717
 
+# Meridian scaling for Modified Universal Transverse Mercator zone 32 (EuroPP) grid.
+MERIDIAN_SCALING_UTM = 0.9996
+
 NIMROD_DEFAULT = -32767.0
 
 TIME_UNIT = iris.unit.Unit('hours since 1970-01-01 00:00:00',
@@ -124,29 +127,32 @@ def tm_meridian_scaling(cube, field):
     Deal with the scale factor on the central meridian for transverse mercator
     projections if present in the field.
 
-    Currently only caters for British National Grid.
+    Currently only caters for British National Grid and Modified Universal
+    Transverse Mercator zone 32.
 
     """
     if field.tm_meridian_scaling not in [field.float32_mdi, NIMROD_DEFAULT]:
         if abs(field.tm_meridian_scaling - MERIDIAN_SCALING_BNG) < 1e-6:
             pass  # This is the expected value for British National Grid
+        if abs(field.tm_meridian_scaling - MERIDIAN_SCALING_UTM) < 1e-6:
+            pass  # This is the expected value for Modified UTM32
         else:
             warnings.warn("tm_meridian_scaling not yet handled: {}"
                           "".format(field.tm_meridian_scaling),
                           TranslationWarning)
 
 
-def british_national_grid_x(cube, field):
-    """Add a British National Grid X coord to the cube."""
+def transverse_mercator_grid_x(cube, field, coord_system):
+    """Add a Transverse Mercator Grid X (easting) coord to the cube."""
     x_coord = DimCoord(np.arange(field.num_cols) * field.column_step +
                        field.x_origin, standard_name="projection_x_coordinate",
-                       units="m", coord_system=iris.coord_systems.OSGB())
+                       units="m", coord_system=coord_system)
     cube.add_dim_coord(x_coord, 1)
 
 
-def british_national_grid_y(cube, field):
+def transverse_mercator_grid_y(cube, field, coord_system):
     """
-    Add a British National Grid Y coord to the cube.
+    Add a Transverse Mercator Grid Y (northing) coord to the cube.
 
     Currently only handles origin in the top left corner.
 
@@ -155,7 +161,7 @@ def british_national_grid_y(cube, field):
         y_coord = DimCoord(np.arange(field.num_rows)[::-1] *
                            -field.row_step + field.y_origin,
                            standard_name="projection_y_coordinate", units="m",
-                           coord_system=iris.coord_systems.OSGB())
+                           coord_system=coord_system)
         cube.add_dim_coord(y_coord, 0)
     else:
         raise TranslationError("Corner {0} not yet implemented".
@@ -165,13 +171,18 @@ def british_national_grid_y(cube, field):
 def horizontal_grid(cube, field):
     """Add X and Y coords to the cube.
 
-    Currently only handles British National Grid.
+    Currently only handles British National Grid  and Modified Universal
+    Transverse Mercator zone 32.
 
     """
     # "NG" (British National Grid)
     if field.horizontal_grid_type == 0:
-        british_national_grid_x(cube, field)
-        british_national_grid_y(cube, field)
+        transverse_mercator_grid_x(cube, field, iris.coord_systems.OSGB())
+        transverse_mercator_grid_y(cube, field, iris.coord_systems.OSGB())
+    # "UTM32" (EuroPP)
+    elif field.horizontal_grid_type == 4:
+        transverse_mercator_grid_x(cube, field, iris.coord_systems.EuroPP())
+        transverse_mercator_grid_y(cube, field, iris.coord_systems.EuroPP())
     else:
         raise TranslationError("Grid type %d not yet implemented" %
                                field.horizontal_grid_type)

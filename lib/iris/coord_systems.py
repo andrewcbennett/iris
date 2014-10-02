@@ -431,6 +431,20 @@ class OSGB(TransverseMercator):
         return cartopy.crs.OSGB()
 
 
+class EuroPP(TransverseMercator):
+    """A Specific transverse mercator projection on a specific ellipsoid."""
+    def __init__(self):
+        TransverseMercator.__init__(self, 50,  9, 1750000, 1500000,
+                                    0.9996,
+                                    GeogCS(6378388.000,6356911.946))
+
+    def as_cartopy_crs(self):
+        return cartopy.crs.EuroPP()
+
+    def as_cartopy_projection(self):
+        return cartopy.crs.EuroPP()
+
+
 class Orthographic(CoordSystem):
     """
     An orthographic map projection.
